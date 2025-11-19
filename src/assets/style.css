@@ -1,0 +1,218 @@
+:root{
+  --primary: #38a845;
+  --surface: #ffffff;
+  --muted: #6b6b6b;
+  --card-radius: 10px;
+  --gap: 12px;
+  font-family: -apple-system, BlinkMacSystemFont, "Noto Sans TC", "Helvetica Neue", Helvetica, Arial;
+  color-scheme: light;
+  /* New style variables for modern/minimalist feel */
+  --bg-color: #f8f8fa;
+  --border-subtle: #eee;
+}
+
+*{box-sizing:border-box}
+html,body,#app{height:100%;margin:0;background:var(--bg-color)}
+/* Layout: clear two-column grid with gap */
+.app{
+  display:grid;
+  grid-template-columns: 1fr 340px; /* main column + right side */
+  grid-template-rows: auto 1fr auto; /* topbar, content, footer */
+  gap:18px;
+  padding:18px;
+  min-height:100vh;
+  align-items:start;
+  /* allow the grid to use the full viewport while letting inner areas scroll */
+  height:100vh;
+}
+
+/* make topbar span full width */
+.topbar{grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px}
+
+/* KPI row */
+.kpis{padding:12px 14px}
+.kpi-grid{display:flex;gap:10px;align-items:stretch}
+.kpi{flex:1;background:var(--surface);border:1px solid var(--border-subtle);padding:12px;border-radius:8px;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;min-width:0}
+.kpi-value{font-size:24px;font-weight:700;color:var(--primary)}
+.kpi-label{font-size:12px;color:var(--muted);margin-top:4px}
+
+/* Main column and cards */
+.main{grid-column:1 / 2;display:flex;flex-direction:column;gap:12px;min-height:0;overflow:auto;padding:0;
+/* constrain main so it scrolls inside viewport without cutting footer */
+max-height: calc(100vh - 140px);
+}
+
+/* ensure side card stays visible but scrolls if tall */
+.sidecard{grid-column:2 / 3;padding:12px;max-height:calc(100vh - 56px);overflow:auto;position:sticky;top:16px}
+
+/* Responsive: single column on narrow screens */
+@media (max-width:900px){
+  .app{grid-template-columns:1fr;grid-auto-rows:auto;padding:12px;gap:12px;height:auto}
+  .sidecard{order:3;width:100%;position:relative;top:0;max-height:none}
+  .topbar{flex-direction:row;align-items:center}
+  .brand{gap:10px}
+  .logo{width:40px;height:40px}
+  .meta{align-items:flex-start}
+  .footer{flex-direction:column;align-items:flex-start;gap:8px}
+
+  /* Mobile-specific adjustments for better touch and layout */
+  .kpi-grid{flex-direction:row;gap:10px;overflow:auto;padding-bottom:6px}
+  .kpi{min-width:120px;flex:0 0 auto}
+
+  /* Let main flow naturally and avoid inner clipping on mobile */
+  .main{max-height:none;overflow:visible;padding-bottom:18px}
+
+  /* Make lists expand instead of fixed-height scroll areas */
+  .trend-list{max-height:none;overflow:visible;padding-right:6px}
+  .suggestion-table{max-height:none;overflow:visible;padding-right:6px}
+  .sample-wall{max-height:none;overflow:visible;padding-right:6px}
+
+  /* Larger touch targets */
+  .trend, .sugg-row, .sample {padding:14px;border-radius:10px}
+  .btn{padding:12px 16px}
+  .btn.small{padding:10px 12px}
+
+  /* Charts should be shorter on small screens */
+  .chart-container { height: 160px; margin-bottom:12px; }
+
+  /* Ensure sidecard content scrolls if needed but doesn't cause layout clipping */
+  .sidecard{max-height:none;overflow:visible}
+
+  /* Slightly increase spacing to reduce visual density on mobile */
+  .card{padding:16px}
+  .section-head h2{font-size:15px}
+
+  /* Keep a little safe bottom padding so last items aren't cut off inside iframe */
+  body{padding-bottom:18px}
+}
+
+.brand{display:flex;gap:12px;align-items:center}
+.logo{width:44px;height:44px;border-radius:10px;background:linear-gradient(180deg,var(--primary),#2e8b3e)}
+.title{font-weight:700}
+.tagline{font-size:12px;color:var(--muted)}
+
+.meta{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+.week{font-size:13px;color:var(--muted)}
+.btn{background:var(--primary);color:#fff;border:0;padding:10px 14px;border-radius:10px;cursor:pointer;transition:background 0.2s}
+.btn:hover{background:#2e8b3e}
+.btn.small{padding:6px 8px;font-size:13px;border-radius:8px}
+.card{background:var(--surface);border-radius:var(--card-radius);padding:14px;box-shadow:0 2px 10px rgba(23,23,23,0.04);border:1px solid var(--border-subtle)}
+
+.section-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:8px}
+.section-head h2{margin:0;font-size:16px}
+.select{padding:8px;border-radius:8px;border:1px solid var(--border-subtle);background:#fff}
+
+/* Trends */
+.trend-list{display:flex;flex-direction:column;gap:10px;max-height:calc(100vh - 320px);overflow:auto;padding-right:6px}
+.trend{display:flex;justify-content:space-between;align-items:center;padding:12px;border-radius:8px;border:1px solid var(--border-subtle);background:#fff;cursor:pointer;transition:background 0.2s}
+.trend:hover{background:#f9f9fb}
+.trend .left{display:flex;flex-direction:column;gap:6px; align-items:flex-start; text-align:left;}
+.trend .topic{font-weight:600}
+.trend .meta{font-size:12px;color:var(--muted)}
+.trend .badge{padding:4px 8px;border-radius:6px;color:#fff;font-weight:600;font-size:12px}
+.trend .up{background:linear-gradient(180deg,var(--primary),#2e8b3e)}
+.trend .down{background:#4a90e2}
+.trend .flat{background:#888}
+
+.cta-row{display:flex;justify-content:flex-end;margin-top:8px}
+
+/* Suggestions */
+.suggestion-table{display:flex;flex-direction:column;gap:8px;max-height:420px;overflow:auto;padding-right:6px}
+/* Change layout: left column holds title + aligned meta rows; keep grid but improve alignment */
+.sugg-row{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;padding:10px;border-radius:8px;border:1px solid var(--border-subtle);align-items:center;background:#fff}
+.sugg-row .title{font-weight:600}
+/* new meta row for consistent aligned subtitle information */
+.sugg-row .meta-sub{font-size:13px;color:var(--muted);margin-top:6px;display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+/* ensure each meta item has fixed min-width to keep column alignment */
+.sugg-row .meta-item{min-width:88px}
+.sugg-row .alt{font-size:13px;color:var(--muted)}
+.sugg-row .action{display:flex;gap:6px;align-items:center}
+.action .pill{background:#f3f9f3;color:var(--primary);padding:4px 8px;border-radius:6px;font-weight:600;font-size:12px}
+
+/* Wall & tags */
+.wall .filters{display:flex;gap:8px;align-items:center}
+.tag-cloud{display:flex;flex-wrap:wrap;gap:6px}
+.tag{padding:6px 8px;border-radius:999px;background:#f2f2f2;font-size:13px;cursor:pointer;border:1px solid #e6e6e6}
+.tag.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+
+/* Samples */
+.sample-wall{display:flex;flex-direction:column;gap:8px;max-height:320px;overflow:auto;padding-right:6px}
+.sample{padding:10px;border-radius:8px;border:1px solid var(--border-subtle);background:#fff;display:flex;flex-direction:column;gap:6px;cursor:pointer;transition:background 0.2s}
+.sample:hover{background:#f9f9fb}
+.sample .meta{font-size:12px;color:var(--muted);display:flex;justify-content:space-between}
+.sample .content{font-size:14px}
+
+/* Preview */
+.empty{color:var(--muted);font-size:13px}
+.preview-snip{background:var(--bg-color);padding:10px;border-radius:8px;border:1px dashed #d0d0d0}
+
+/* Chart Container for Side Panel */
+.chart-container {
+  height: 220px;
+  width: 100%;
+  margin-bottom: 15px;
+}
+
+/* Footer */
+.footer{grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;padding:8px 16px}
+.legend{font-size:13px;color:var(--muted);display:flex;gap:12px;align-items:center}
+.dot{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:6px}
+.dot.up{background:var(--primary)}
+.dot.down{background:#4a90e2}
+.dot.flat{background:#888}
+
+/* --- Scrollbar / slider improvements --- */
+/* Add safe padding to scrolling regions so last item isn't cut off on mobile */
+.main{max-height: calc(100vh - 150px); padding-bottom:12px}
+
+/* Apply consistent custom scrollbar appearance (WebKit + Firefox) */
+.trend-list::-webkit-scrollbar,
+.suggestion-table::-webkit-scrollbar,
+.sample-wall::-webkit-scrollbar,
+.sidecard::-webkit-scrollbar,
+.main::-webkit-scrollbar {
+  height:10px;
+  width:10px;
+}
+.trend-list::-webkit-scrollbar-thumb,
+.suggestion-table::-webkit-scrollbar-thumb,
+.sample-wall::-webkit-scrollbar-thumb,
+.sidecard::-webkit-scrollbar-thumb,
+.main::-webkit-scrollbar-thumb {
+  background: rgba(0,0,0,0.08);
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.trend-list::-webkit-scrollbar-thumb:hover,
+.suggestion-table::-webkit-scrollbar-thumb:hover,
+.sample-wall::-webkit-scrollbar-thumb:hover,
+.sidecard::-webkit-scrollbar-thumb:hover,
+.main::-webkit-scrollbar-thumb:hover {
+  background: rgba(0,0,0,0.12);
+}
+.trend-list::-webkit-scrollbar-track,
+.suggestion-table::-webkit-scrollbar-track,
+.sample-wall::-webkit-scrollbar-track,
+.sidecard::-webkit-scrollbar-track,
+.main::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 8px;
+}
+
+/* Firefox */
+.trend-list, .suggestion-table, .sample-wall, .sidecard, .main {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0,0,0,0.08) transparent;
+}
+
+/* Keep a small right padding so scrollbars don't overlay content on narrow devices */
+.trend-list, .suggestion-table, .sample-wall { padding-right: 14px; }
+
+/* ensure sticky sidecard doesn't overflow on small heights */
+.sidecard{max-height:calc(100vh - 88px);}
+
+/* small touch target improvement for scrollable lists */
+.trend, .sugg-row, .sample { touch-action: pan-y; }
+
+.small-note{font-size:12px;color:var(--muted)}
