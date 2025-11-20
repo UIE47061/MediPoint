@@ -1,25 +1,45 @@
 <script setup>
 import { ref, onMounted } from 'vue'
+import axios from 'axios'
+
+// ==========================================
+// ⚡️ 設定 API 連線位置
+// ==========================================
+// 如果你在本機跑後端，請用 'http://127.0.0.1:8000'
+// 如果要連 Hugging Face，請填入 Direct URL，例如 'https://uie47061-medipoint-backend.hf.space'
+const API_BASE_URL = 'http://127.0.0.1:8000' 
+// const API_BASE_URL = 'https://你的HuggingFace網址.hf.space' 
 
 // --- 狀態管理 ---
 const loading = ref(true)
-const reportDate = ref('2025-10-30') 
-const kpiData = ref({})
+const reportDate = ref('') 
+const kpiData = ref({
+  // 預設初始值，避免畫面閃爍
+  coverage_label: '讀取中...',
+  coverage_value: '-',
+  coverage_trend: '-',
+  coverage_progress: 0,
+  gross_profit: '-',
+  margin_rate: '-',
+  margin_status: 'high',
+  top_category: '-'
+})
 const alerts = ref([])
 const suggestions = ref([])
 const insights = ref([])
 
 // 互動狀態
-const showToast = ref(false) // 控制匯出成功提示
-const showModal = ref(false) // 控制話術彈窗
-const currentModalData = ref({}) // 彈窗內容
+const showToast = ref(false) 
+const showModal = ref(false) 
+const currentModalData = ref({}) 
 
 // --- 輔助函式 ---
 
-// 計算毛利率顏色 (低毛利示警)
+// 計算毛利率顏色 (高毛利顯示為主色綠)
 const getMarginColor = (margin) => {
-  if (margin >= 30) return 'text-primary bg-primary-50 border-primary-100'
-  if (margin >= 15) return 'text-yellow-600 bg-yellow-50 border-yellow-200'
+  const val = parseFloat(margin)
+  if (val >= 30) return 'text-primary bg-primary-50 border-primary-100'
+  if (val >= 15) return 'text-yellow-600 bg-yellow-50 border-yellow-200'
   return 'text-red-600 bg-red-50 border-red-200'
 }
 
@@ -37,7 +57,7 @@ const handleExport = () => {
   showToast.value = true
   setTimeout(() => {
     showToast.value = false
-  }, 3000) // 3秒後消失
+  }, 3000)
 }
 
 // 2. 開啟話術彈窗
@@ -46,9 +66,9 @@ const openScriptModal = (item) => {
     title: item.topic,
     category: item.related_category,
     intro: item.talking_points,
-    // 模擬 AI 生成的詳細指引
+    // 前端裝飾用的檢查點，後端未來也可以回傳
     checkpoints: [
-      '詢問顧客症狀持續天數（區分一般感冒或流感）',
+      '詢問顧客症狀持續天數',
       '確認是否有藥物過敏史',
       '若為兒童，請依照體重計算劑量'
     ],
@@ -57,94 +77,40 @@ const openScriptModal = (item) => {
   showModal.value = true
 }
 
-// 關閉彈窗
 const closeModal = () => {
   showModal.value = false
 }
 
-// --- 資料載入 ---
+// --- 資料載入 (串接後端 API) ---
 const fetchDashboard = async () => {
   loading.value = true
   
-  setTimeout(() => {
+  try {
+    console.log(`正在連線至後端: ${API_BASE_URL}/api/dashboard/weekly-report`)
     
-    // 1. KPI 數據 (模擬 S001 門市 10/30 狀態)
-    kpiData.value = {
-      coverage_label: '熱門商品覆蓋率',
-      coverage_value: '85%',        
-      coverage_trend: '較上週 +5%',  
-      coverage_progress: 85,         
-
-      gross_profit: '4,148', 
-      
-      // 修正邏輯：毛利 9.8% 對藥局來說偏低，顯示橘色/紅色
-      margin_rate: '9.8%',   
-      margin_status: 'low', // low, medium, high
-      
-      top_category: '保健藥品'
-    }
-
-    // 2. 法規警示
-    alerts.value = [
-      { agency: 'CDC', type: '疫情速訊', title: '第 43 週流感併發重症案例上升，請加強衛教', risk_level: 'High' },
-      { agency: 'TFDA', type: '藥品回收', title: '特定批號胃藥因包裝瑕疵啟動二級回收', risk_level: 'Medium' }
-    ]
-
-    // 3. 智慧備貨建議
-    suggestions.value = [
-      { 
-        topic: '流感與呼吸道感染高峰', 
-        action: 'Restock', 
-        related_category: '感冒/退燒',
-        reason: '輿情熱度上升 150% 且 CDC 發布警示，店內「退燒止痛」庫存低於安全水位。',
-        items: [
-          { 
-            sku_id: 'SKU-保健-001', 
-            name: '品牌A 退燒止痛 20入', 
-            stock: 25, 
-            margin: 34.1, 
-            sales_7d: 14,
-            status: 'Critical' 
-          },
-          { 
-            sku_id: 'SKU-保健-014', 
-            name: '品牌C 感冒成藥 20入', 
-            stock: 43, 
-            margin: 36.8, 
-            sales_7d: 8,
-            status: 'Warning'
-          }
-        ],
-        talking_points: '這兩款都是針對發燒與喉嚨痛的熱銷款。品牌A目前庫存只夠賣 2 天，且它是高毛利商品，缺貨會影響利潤，建議盡快補貨。'
-      },
-      { 
-        topic: '換季過敏潮', 
-        action: 'Promotion', 
-        related_category: '鼻噴劑/維他命',
-        reason: 'PTT/Dcard 過敏討論增加，但店內鼻噴劑庫存過高，建議做促銷去化。',
-        items: [
-          { 
-            sku_id: 'SKU-保健-015', 
-            name: '品牌C 鼻噴劑 10入', 
-            stock: 117, 
-            margin: 36.0, 
-            sales_7d: 5,
-            status: 'Safe' 
-          }
-        ],
-        talking_points: '雖然現在有人問，但我們庫存還有 117 盒 (庫存偏高)。建議擺在櫃台顯眼處，或搭配維他命做「換季防護組」促銷。'
-      }
-    ]
-
-    // 4. 輿情列表
-    insights.value = [
-      { source: 'PTT', board: 'BabyMother', title: '小孩半夜發燒買不到藥怎麼辦？', content: '跑了兩家藥局都說退燒藥缺貨，最後只好去急診...', intent: 'Out_of_Stock', tags: ['缺貨', '兒童'] },
-      { source: 'Dcard', board: 'Health', title: '最近流感是不是很強？喉嚨痛死', content: '吞口水像刀割一樣，有推薦的成藥嗎？吃了幾款都沒效。', intent: 'Ask', tags: ['流感', '推薦'] },
-      { source: 'Google', board: 'Review', title: '藥師很親切，但想買的品牌A沒貨', content: '希望能多進一點... (3星)', intent: 'Complain', tags: ['庫存', '服務'] }
-    ]
+    const response = await axios.get(`${API_BASE_URL}/api/dashboard/weekly-report`)
+    const data = response.data
     
+    console.log("取得資料成功:", data)
+
+    // 更新畫面數據
+    reportDate.value = data.report_date
+    kpiData.value = data.kpiData
+    alerts.value = data.alerts
+    suggestions.value = data.suggestions
+    insights.value = data.insights
+
+  } catch (error) {
+    console.error("API 連線失敗:", error)
+    // 錯誤處理：顯示預設的錯誤訊息或 Mock 作為備案
+    alert(`連線失敗！請檢查後端是否啟動。\n目標網址: ${API_BASE_URL}`)
+    
+    // (選用) 為了 Demo 不開天窗，這裡可以放回之前的 Mock Data 作為 Fallback
+    // 但為了測試連線，目前先留白讓我們知道連線失敗
+
+  } finally {
     loading.value = false
-  }, 800) // 稍微加長一點點載入時間，讓 Loading 更有感
+  }
 }
 
 onMounted(() => {
@@ -221,11 +187,10 @@ onMounted(() => {
           </div>
         </div>
 
-        <!-- 卡片 3: 平均毛利率 (修正顏色邏輯) -->
+        <!-- 卡片 3 -->
         <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
           <p class="text-xs text-slate-500 font-medium">平均毛利率</p>
           <div class="flex items-end gap-2 mt-1">
-            <!-- 如果是 low，顯示橘色；否則顯示綠色 -->
             <span :class="`text-2xl font-bold ${kpiData.margin_status === 'low' ? 'text-orange-500' : 'text-primary'}`">
               {{ kpiData.margin_rate }}
             </span>
@@ -251,10 +216,11 @@ onMounted(() => {
               <span class="w-2 h-6 bg-primary rounded-full"></span>
               AI 備貨與行動建議
             </h2>
-            <!-- 互動按鈕 -->
+            
             <button 
               @click="handleExport"
               class="text-xs bg-primary text-white px-4 py-2 rounded-md font-medium hover:bg-green-700 transition-all active:scale-95 shadow-sm flex items-center gap-1">
+              <!-- Export Icon -->
               <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
               </svg>
@@ -331,11 +297,16 @@ onMounted(() => {
                   </table>
                 </div>
 
-                <!-- Speaking Tips (可點擊互動) -->
+                <!-- Speaking Tips -->
                 <div 
                   @click="openScriptModal(item)"
                   class="mt-4 bg-primary-50 rounded-lg p-3 flex gap-3 items-start cursor-pointer hover:bg-green-100 transition-colors border border-transparent hover:border-primary-200">
-                  <span class="text-lg">💡</span>
+                  
+                  <!-- Lightbulb Icon -->
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 text-yellow-500 flex-shrink-0">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 18v-1.946a2.207 2.207 0 01-.518-3.58C13.341 10.817 15 9.318 15 8c0-3.866-3.582-7-8-7s-8 3.134-8 7c0 1.318 1.659 2.817 3.518 4.474a2.207 2.207 0 01-.518 3.58V18m3-12h.01M12 18a1.5 1.5 0 01-3 0" />
+                  </svg>
+
                   <div class="w-full">
                     <div class="flex justify-between items-center">
                         <span class="text-xs font-bold text-primary-700 uppercase">藥師銷售話術 (點擊查看詳情)</span>
@@ -343,7 +314,7 @@ onMounted(() => {
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
                         </svg>
                     </div>
-                    <p class="text-sm text-green-800 mt-1 leading-relaxed">
+                    <p class="text-sm text-green-900 mt-1 leading-relaxed">
                       {{ item.talking_points }}
                     </p>
                   </div>
@@ -367,7 +338,8 @@ onMounted(() => {
                   <span class="text-[10px] text-slate-400">今日</span>
                 </div>
                 <h4 class="text-sm font-bold text-slate-800 mb-1 leading-snug hover:text-primary cursor-pointer transition-colors">
-                  {{ insight.title }}
+                  <!-- 點擊標題開啟原文連結 -->
+                  <a :href="insight.url" target="_blank" rel="noopener noreferrer">{{ insight.title }}</a>
                 </h4>
                 <p class="text-xs text-slate-500 line-clamp-3 mb-2 group-hover:text-slate-700 transition-colors">
                   {{ insight.content }}
@@ -403,7 +375,7 @@ onMounted(() => {
       </div>
     </main>
 
-    <!-- Toast Notification (匯出成功提示) -->
+    <!-- Toast Notification -->
     <div 
       v-if="showToast"
       class="fixed bottom-8 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-3 transition-all duration-500 z-50 animate-bounce-in">
@@ -416,12 +388,15 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- Script Modal (話術彈窗) -->
+    <!-- Script Modal -->
     <div v-if="showModal" class="fixed inset-0 bg-black/50 z-50 flex justify-center items-center p-4 backdrop-blur-sm transition-opacity" @click.self="closeModal">
       <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden transform transition-all scale-100">
         <div class="bg-primary px-6 py-4 flex justify-between items-center">
           <h3 class="text-white font-bold text-lg flex items-center gap-2">
-            <span class="text-xl">🎓</span> 藥師 AI 衛教助手
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4.26 10.147a60.436 60.436 0 00-.491 6.347A48.627 48.627 0 0112 20.904a48.627 48.627 0 018.232-4.41 60.46 60.46 0 00-.491-6.347m-15.482 0a50.57 50.57 0 00-2.658-.813A59.905 59.905 0 0112 3.493a59.902 59.902 0 0110.499 5.24c-.967.666-2.071 1.01-3.222 1.218m-1.989.558a11.257 11.257 0 01-6.578 0m0 0a3.125 3.125 0 00-1.757 4.306 3.125 3.125 0 004.306 1.757 3.125 3.125 0 001.757-4.306 3.125 3.125 0 00-4.306-1.757H12z" />
+            </svg>
+            藥師 AI 衛教助手
           </h3>
           <button @click="closeModal" class="text-white/80 hover:text-white">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -443,7 +418,10 @@ onMounted(() => {
             <h5 class="text-sm font-bold text-slate-700 mb-2">🩺 問診檢查點 (Checklist)</h5>
             <ul class="space-y-2">
               <li v-for="(point, idx) in currentModalData.checkpoints" :key="idx" class="flex items-start gap-2 text-sm text-slate-600">
-                <span class="text-primary mt-0.5">✔</span> {{ point }}
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4 text-primary mt-0.5 flex-shrink-0">
+                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                </svg>
+                {{ point }}
               </li>
             </ul>
           </div>
@@ -457,7 +435,10 @@ onMounted(() => {
 
           <div class="pt-2 border-t border-slate-100">
              <p class="text-xs font-bold text-orange-600 flex items-center gap-1">
-               <span>🔥</span> {{ currentModalData.upsell }}
+               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4 text-orange-500">
+                <path fill-rule="evenodd" d="M12.395 2.553a1 1 0 00-1.45-.385c-.345.23-.614.558-.822.88-.214.33-.403.713-.57 1.116-.334.804-.614 1.768-.84 2.734a31.365 31.365 0 00-.613 3.58 2.64 2.64 0 01-.945-1.067c-.328-.68-.398-1.534-.398-2.654A1 1 0 005.05 6.05 6.981 6.981 0 003 11a7 7 0 1011.95-4.95c-.592-.591-.98-.985-1.348-1.467-.363-.476-.724-1.063-1.207-2.03zM12.12 15.12a3 3 0 10-4.24-4.24 3 3 0 004.24 4.24z" clip-rule="evenodd" />
+               </svg>
+               {{ currentModalData.upsell }}
              </p>
           </div>
 
@@ -480,7 +461,6 @@ onMounted(() => {
   100% { transform: translateX(-100%); }
 }
 
-/* 簡單的進場動畫 */
 .animate-bounce-in {
   animation: bounceIn 0.5s cubic-bezier(0.68, -0.55, 0.27, 1.55);
 }
