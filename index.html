@@ -3,8 +3,48 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <title>藥點 MediPoint — 商情備貨摘要</title>
-  <meta name="color-scheme" content="light">
+  <title>藥點 MediPoint — 智慧備貨戰情室</title>
+  
+  <!-- 引入 Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- 設定主色系 -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            // 這裡定義你的品牌綠色 #38a845
+            primary: {
+              DEFAULT: '#38a845',
+              50: '#eafef0', // 極淺綠 (背景用)
+              100: '#d0fcd9',
+              500: '#38a845', // 主色
+              600: '#2e8f3a', // 深一點 (Hover用)
+              700: '#267030', // 文字用
+            }
+          }
+        }
+      }
+    }
+  </script>
+  
+  <!-- 引入 Google Fonts (Noto Sans TC) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+  
+  <style>
+    body { font-family: 'Noto Sans TC', sans-serif; }
+    /* 自定義 Scrollbar */
+    .scrollbar-hide::-webkit-scrollbar {
+        display: none;
+    }
+    .scrollbar-hide {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
+  </style>
 </head>
 <body>
   <div id="app"></div>

@@ -1,70 +1,33 @@
-# 藥點 MediPoint - 商情備貨摘要系統
+# 藥點 MediPoint — 前端戰情室 (Frontend Dashboard)
 
-這是一個藥局商情分析與備貨建議的展示系統，使用純 HTML/CSS/JavaScript 開發。
+> **Tagline:** 看懂輿論風向，做對每次備貨
+> **Core Value:** 結合「社群輿情」與「ERP 庫存」的智慧採購決策系統。
 
-## 功能特色
+## 📖 專案簡介
 
-- 📊 **議題趨勢分析**：即時掌握熱門商品話題與升降趨勢
-- 💡 **智能備貨建議**：根據市場需求提供具體補貨建議
-- 🔍 **樣本追溯**：可追溯到原始社群討論來源
-- 📈 **視覺化圖表**：使用 ECharts 呈現關鍵洞察數據
+**藥點 MediPoint** 是一個針對藥局通路設計的 B2B SaaS 儀表板。解決藥局「備貨滯後」與「庫存積壓」的痛點。
 
-## 快速開始
+前端介面模擬了真實的決策場景，將爬蟲抓取的網路趨勢（PTT/Dcard）與內部 ERP 數據（庫存/毛利）進行交叉比對，提供一鍵式的備貨建議。
 
-### 方法 1: 使用 Python（推薦）
+### ✨ 核心功能 (Key Features)
 
-```bash
-# 直接在專案目錄執行
-python3 -m http.server 8080
+1.  **全覽戰情儀表板**：
+    *   即時監控「熱門商品覆蓋率」與「營收毛利」。
+    *   整合 CDC/TFDA 官方疫情與回收警示跑馬燈。
+2.  **AI 智慧備貨建議 (Action Cards)**：
+    *   **庫存/毛利交叉分析**：自動標示高毛利且庫存告急的商品 (紅燈警示)。
+    *   **決策輔助**：提供具體的「補貨」或「促銷」建議。
+3.  **藥師 AI 衛教助手**：
+    *   互動式彈窗，提供針對特定病症（如流感）的銷售話術與衛教檢查點 (Checkpoints)。
+4.  **輿情脈絡牆**：
+    *   展示佐證資料，讓採購人員了解網路討論趨勢（來源：PTT, Dcard, Google Reviews）。
 
-# 然後在瀏覽器開啟
-open http://localhost:8080
-```
+---
 
-### 方法 2: 使用 Node.js
+## 🛠️ 技術堆疊 (Tech Stack)
 
-```bash
-# 安裝 http-server
-npm install -g http-server
-
-# 執行
-http-server -p 8080
-```
-
-### 方法 3: 直接開啟
-
-如果瀏覽器支援 ES Modules，可以直接開啟 index.html。
-
-## 專案結構
-
-```
-MediPoint/
-├── index.html      # 主頁面
-├── style.css       # 樣式表
-├── app.js          # 主要邏輯
-├── mockdata.js     # 模擬資料
-├── package.json    # 專案設定
-└── README.md       # 說明文件
-```
-
-## 技術棧
-
-- **前端框架**：純 Vanilla JavaScript (ES6+)
-- **圖表庫**：Apache ECharts 5.5.0
-- **模組系統**：ES Modules (Import Maps)
-- **樣式**：原生 CSS
-- **工具**：nanoid (ID 生成)
-
-## 主色配色
-
-專案使用綠色作為主色調：
-- 主色：#38a845 (RGB: 56, 168, 69)
-
-## 開發說明
-
-本專案不需要編譯步驟，所有依賴透過 CDN (esm.sh) 載入。
-修改後直接重新整理瀏覽器即可看到變更。
-
-## 授權
-
-Private - 競賽用途
+*   **Framework**: [Vue 3](https://vuejs.org/) (Composition API)
+*   **Build Tool**: [Vite](https://vitejs.dev/)
+*   **Styling**: [Tailwind CSS](https://tailwindcss.com/) (CDN & Config)
+*   **Icons**: Heroicons (SVG)
+*   **HTTP Client**: Axios (Prepared for API integration)
