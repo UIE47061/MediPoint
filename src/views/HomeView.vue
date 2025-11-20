@@ -1,17 +1,16 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import axios from 'axios'
+import jsPDF from 'jspdf'
+import html2canvas from 'html2canvas'
 
-// ==========================================
 // ⚡️ 設定 API 連線位置
-// ==========================================
-const API_BASE_URL = 'https://uie47061-medipoint.hf.space' 
+const API_BASE_URL = 'https://uie47061-medipoint.hf.space'
 
 // --- 狀態管理 ---
 const loading = ref(true)
-const reportDate = ref('') 
+const reportDate = ref('2025-10-30') 
 const kpiData = ref({
-  // 預設初始值，避免畫面閃爍
   coverage_label: '讀取中...',
   coverage_value: '-',
   coverage_trend: '-',
@@ -27,12 +26,12 @@ const insights = ref([])
 
 // 互動狀態
 const showToast = ref(false) 
+const toastMessage = ref('')
 const showModal = ref(false) 
 const currentModalData = ref({}) 
 
 // --- 輔助函式 ---
 
-// 計算毛利率顏色 (高毛利顯示為主色綠)
 const getMarginColor = (margin) => {
   const val = parseFloat(margin)
   if (val >= 30) return 'text-primary bg-primary-50 border-primary-100'
@@ -40,7 +39,6 @@ const getMarginColor = (margin) => {
   return 'text-red-600 bg-red-50 border-red-200'
 }
 
-// 計算庫存燈號
 const getStockStatus = (qty) => {
   if (qty <= 30) return { label: '庫存告急', color: 'text-red-600', dot: 'bg-red-500', text: '急需進貨' }
   if (qty <= 60) return { label: '庫存偏低', color: 'text-yellow-600', dot: 'bg-yellow-500', text: '觀察' }
@@ -49,21 +47,88 @@ const getStockStatus = (qty) => {
 
 // --- 互動功能 ---
 
-// 1. 模擬匯出採購單
-const handleExport = () => {
-  showToast.value = true
-  setTimeout(() => {
-    showToast.value = false
-  }, 3000)
+// 1. 匯出 CSV
+const handleCsvExport = () => {
+  const headers = ['報表日期', '決策主題', '關聯品類', 'SKU編號', '商品名稱', '當前庫存', '毛利率', '建議行動', '銷售話術/備註'];
+  const rows = [];
+  rows.push(headers.join(','));
+
+  suggestions.value.forEach(suggestion => {
+    if (suggestion.items && suggestion.items.length > 0) {
+      suggestion.items.forEach(item => {
+        const safeName = `"${item.name}"`; 
+        const safeTalk = `"${suggestion.talking_points.replace(/"/g, '""')}"`; 
+        const row = [
+          reportDate.value, suggestion.topic, suggestion.related_category, item.sku_id, safeName, item.stock, `${item.margin}%`, suggestion.action === 'Restock' ? '建議補貨' : '建議促銷', safeTalk
+        ];
+        rows.push(row.join(','));
+      });
+    }
+  });
+
+  const csvContent = "\uFEFF" + rows.join("\n");
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.setAttribute("href", url);
+  link.setAttribute("download", `MediPoint_採購單_${reportDate.value}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+
+  showToastMessage("採購單 (CSV) 下載成功！")
 }
 
-// 2. 開啟話術彈窗
+// 2. 匯出 PDF
+const handlePdfExport = async () => {
+  const element = document.getElementById('dashboard-content'); // 抓取要截圖的區域
+  if (!element) return;
+
+  // 顯示提示
+  showToastMessage("正在生成 PDF，請稍候...", 5000)
+
+  try {
+    // 使用 html2canvas 截圖
+    const canvas = await html2canvas(element, {
+      scale: 2, // 提高解析度，讓文字清晰
+      useCORS: true, // 允許跨域圖片
+      logging: false
+    });
+
+    const imgData = canvas.toDataURL('image/png');
+    
+    // 設定 PDF (A4 直向)
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = pdf.internal.pageSize.getHeight();
+    
+    // 計算圖片縮放比例 (Fit Width)
+    const imgProps = pdf.getImageProperties(imgData);
+    const imgHeight = (imgProps.height * pdfWidth) / imgProps.width;
+    
+    // 產生 PDF
+    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, imgHeight);
+    pdf.save(`MediPoint_週報_${reportDate.value}.pdf`);
+    
+    showToastMessage("PDF 週報下載成功！")
+    
+  } catch (error) {
+    console.error("PDF 生成失敗:", error);
+    alert("PDF 生成失敗，請稍後再試");
+  }
+}
+
+const showToastMessage = (msg, duration=3000) => {
+  toastMessage.value = msg
+  showToast.value = true
+  setTimeout(() => { showToast.value = false }, duration)
+}
+
 const openScriptModal = (item) => {
   currentModalData.value = {
     title: item.topic,
     category: item.related_category,
     intro: item.talking_points,
-    // 前端裝飾用的檢查點，後端未來也可以回傳
     checkpoints: [
       '詢問顧客症狀持續天數',
       '確認是否有藥物過敏史',
@@ -78,19 +143,14 @@ const closeModal = () => {
   showModal.value = false
 }
 
-// --- 資料載入 (串接後端 API) ---
+// --- 資料載入 ---
 const fetchDashboard = async () => {
   loading.value = true
   
   try {
-    console.log(`正在連線至後端: ${API_BASE_URL}/api/dashboard/weekly-report`)
-    
     const response = await axios.get(`${API_BASE_URL}/api/dashboard/weekly-report`)
     const data = response.data
     
-    console.log("取得資料成功:", data)
-
-    // 更新畫面數據
     reportDate.value = data.report_date
     kpiData.value = data.kpiData
     alerts.value = data.alerts
@@ -99,12 +159,7 @@ const fetchDashboard = async () => {
 
   } catch (error) {
     console.error("API 連線失敗:", error)
-    // 錯誤處理：顯示預設的錯誤訊息或 Mock 作為備案
-    alert(`連線失敗！請檢查後端是否啟動。\n目標網址: ${API_BASE_URL}`)
-    
-    // (選用) 為了 Demo 不開天窗，這裡可以放回之前的 Mock Data 作為 Fallback
-    // 但為了測試連線，目前先留白讓我們知道連線失敗
-
+    alert(`連線失敗！請確認後端網址設定。\n目前設定: ${API_BASE_URL}`)
   } finally {
     loading.value = false
   }
@@ -129,13 +184,29 @@ onMounted(() => {
               <p class="text-[10px] text-slate-500 leading-none">ERP 智慧商情系統</p>
             </div>
           </div>
-          <div class="flex items-center gap-4">
-            <span class="px-3 py-1 bg-slate-100 rounded-full text-xs text-slate-600 font-medium border border-slate-200">
-              門市：S001 大安和平店
-            </span>
-            <div class="text-right hidden sm:block">
-              <p class="text-xs text-slate-400">資料更新時間</p>
-              <p class="text-sm font-bold text-slate-700">{{ reportDate }}</p>
+          <div class="flex items-center gap-3">
+            <!-- 按鈕群組 -->
+            <div class="hidden md:flex items-center gap-2">
+              
+              <!-- PDF 按鈕 -->
+              <button 
+                @click="handlePdfExport"
+                class="text-xs bg-slate-100 text-slate-700 px-3 py-2 rounded-md font-medium hover:bg-slate-200 transition-all flex items-center gap-1 border border-slate-300">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5zm-3 0h.008v.008H15V10.5z" />
+                </svg>
+                下載 PDF 報表
+              </button>
+
+              <!-- CSV 按鈕 -->
+              <button 
+                @click="handleCsvExport"
+                class="text-xs bg-primary text-white px-3 py-2 rounded-md font-medium hover:bg-green-700 transition-all shadow-sm flex items-center gap-1">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                匯出採購單 (CSV)
+              </button>
             </div>
           </div>
         </div>
@@ -156,12 +227,11 @@ onMounted(() => {
       </div>
     </div>
 
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+    <!-- ⚠️ 重要：加上 id="dashboard-content" 讓 PDF 截圖抓取這個範圍 -->
+    <main id="dashboard-content" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 bg-slate-50">
       
       <!-- 1. KPI Stats Row -->
       <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-        
-        <!-- 卡片 1: 商品覆蓋率 -->
         <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
           <div class="flex justify-between items-start">
             <p class="text-xs text-slate-500 font-medium">{{ kpiData.coverage_label }}</p>
@@ -176,7 +246,6 @@ onMounted(() => {
           </div>
         </div>
 
-        <!-- 卡片 2 -->
         <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
           <p class="text-xs text-slate-500 font-medium">今日毛利額</p>
           <div class="flex items-end gap-2 mt-1">
@@ -184,7 +253,6 @@ onMounted(() => {
           </div>
         </div>
 
-        <!-- 卡片 3 -->
         <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
           <p class="text-xs text-slate-500 font-medium">平均毛利率</p>
           <div class="flex items-end gap-2 mt-1">
@@ -195,7 +263,6 @@ onMounted(() => {
           </div>
         </div>
 
-        <!-- 卡片 4 -->
         <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
           <p class="text-xs text-slate-500 font-medium">熱銷品類</p>
           <div class="flex items-end gap-2 mt-1">
@@ -213,16 +280,6 @@ onMounted(() => {
               <span class="w-2 h-6 bg-primary rounded-full"></span>
               AI 備貨與行動建議
             </h2>
-            
-            <button 
-              @click="handleExport"
-              class="text-xs bg-primary text-white px-4 py-2 rounded-md font-medium hover:bg-green-700 transition-all active:scale-95 shadow-sm flex items-center gap-1">
-              <!-- Export Icon -->
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-              </svg>
-              匯出採購單
-            </button>
           </div>
 
           <div v-if="loading" class="p-12 text-center text-slate-400">
@@ -231,11 +288,9 @@ onMounted(() => {
           </div>
 
           <div v-else class="space-y-4">
-            <!-- Action Card Loop -->
             <div v-for="(item, index) in suggestions" :key="index" 
                  class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden hover:shadow-md transition-all duration-200 group">
               
-              <!-- Card Header -->
               <div class="p-5 border-b border-slate-100 flex justify-between items-start bg-slate-50/50">
                 <div>
                   <div class="flex items-center gap-3 mb-2">
@@ -254,7 +309,6 @@ onMounted(() => {
                 </div>
               </div>
 
-              <!-- Card Body: SKU Table -->
               <div class="p-5">
                 <div class="overflow-x-auto">
                   <table class="w-full text-sm text-left">
@@ -294,12 +348,10 @@ onMounted(() => {
                   </table>
                 </div>
 
-                <!-- Speaking Tips -->
                 <div 
                   @click="openScriptModal(item)"
                   class="mt-4 bg-primary-50 rounded-lg p-3 flex gap-3 items-start cursor-pointer hover:bg-green-100 transition-colors border border-transparent hover:border-primary-200">
                   
-                  <!-- Lightbulb Icon -->
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 text-yellow-500 flex-shrink-0">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 18v-1.946a2.207 2.207 0 01-.518-3.58C13.341 10.817 15 9.318 15 8c0-3.866-3.582-7-8-7s-8 3.134-8 7c0 1.318 1.659 2.817 3.518 4.474a2.207 2.207 0 01-.518 3.58V18m3-12h.01M12 18a1.5 1.5 0 01-3 0" />
                   </svg>
@@ -334,9 +386,21 @@ onMounted(() => {
                   </span>
                   <span class="text-[10px] text-slate-400">今日</span>
                 </div>
-                <h4 class="text-sm font-bold text-slate-800 mb-1 leading-snug hover:text-primary cursor-pointer transition-colors">
-                  <!-- 點擊標題開啟原文連結 -->
-                  <a :href="insight.url" target="_blank" rel="noopener noreferrer">{{ insight.title }}</a>
+                <h4 class="text-sm font-bold text-slate-800 mb-1 leading-snug transition-colors">
+                  <a 
+                    :href="insight.url" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    class="hover:text-primary hover:underline decoration-primary decoration-2 underline-offset-2 block"
+                  >
+                    {{ insight.title }}
+                    <span class="inline-block align-middle text-slate-400 ml-0.5">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-3 h-3">
+                        <path fill-rule="evenodd" d="M4.25 5.5a.75.75 0 00-.75.75v8.5c0 .414.336.75.75.75h8.5a.75.75 0 00.75-.75v-4a.75.75 0 011.5 0v4A2.25 2.25 0 0112.75 19H4.25A2.25 2.25 0 012 16.75V6.25A2.25 2.25 0 014.25 4h4a.75.75 0 010 1.5h-4z" clip-rule="evenodd" />
+                        <path fill-rule="evenodd" d="M6.194 12.753a.75.75 0 001.06.053L16.5 4.44v2.81a.75.75 0 001.5 0v-4.5a.75.75 0 00-.75-.75h-4.5a.75.75 0 000 1.5h2.553l-9.056 8.194a.75.75 0 00-.053 1.06z" clip-rule="evenodd" />
+                      </svg>
+                    </span>
+                  </a>
                 </h4>
                 <p class="text-xs text-slate-500 line-clamp-3 mb-2 group-hover:text-slate-700 transition-colors">
                   {{ insight.content }}
@@ -380,7 +444,7 @@ onMounted(() => {
         <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
       </svg>
       <div>
-        <p class="text-sm font-bold">採購單匯出成功</p>
+        <p class="text-sm font-bold">{{ toastMessage }}</p>
         <p class="text-xs text-gray-400">檔案已傳送至您的信箱</p>
       </div>
     </div>
