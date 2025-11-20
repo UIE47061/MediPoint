@@ -7,7 +7,7 @@ import axios from 'axios'
 // ==========================================
 // 如果你在本機跑後端，請用 'http://127.0.0.1:8000'
 // 如果要連 Hugging Face，請填入 Direct URL，例如 'https://uie47061-medipoint-backend.hf.space'
-const API_BASE_URL = 'http://127.0.0.1:8000' 
+const API_BASE_URL = 'https://uie47061-medipoint.hf.space/' 
 // const API_BASE_URL = 'https://你的HuggingFace網址.hf.space' 
 
 // --- 狀態管理 ---
